@@ -54,6 +54,9 @@ This package is the translation layer, kept small enough to audit in one sitting
   instead of failing the run.
 - **Idempotency keys are deterministic per Paperclip run**, so a retry of the same run cannot start
   the same work twice.
+- **A task is retried only when nothing ran.** If the request fails before the first event arrives,
+  the adapter retries up to `maxRetries` under the same idempotency key. Once any event has been
+  seen, it never retries on its own — the work may already be underway.
 - **Secrets stay out of logs.** Tool-call arguments are never rendered — only the tool name.
 
 ## Using it in Paperclip

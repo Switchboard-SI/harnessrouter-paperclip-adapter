@@ -154,25 +154,44 @@ export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): Serv
       paperclip_company_id: ctx.agent.companyId,
     };
 
-    try {
-      for await (const rawEvent of client.stream(prompt, options)) {
-        const event = rawEvent as UhpStreamEvent;
-        const discovered = responseIdFromEvent(event);
-        if (discovered) responseId = discovered;
+    // A streamed task is never retried by the client library: it cannot know
+    // whether work started. We can — if no event arrived, nothing ran. Retrying
+    // that case under the same idempotency key is safe and saves a whole run.
+    let attempt = 0;
+    let sawEvent = false;
+    for (;;) {
+      try {
+        for await (const rawEvent of client.stream(prompt, options)) {
+          sawEvent = true;
+          const event = rawEvent as UhpStreamEvent;
+          const discovered = responseIdFromEvent(event);
+          if (discovered) responseId = discovered;
 
-        const mapped = mapStreamEvent(event);
-        if (mapped.log) await ctx.onLog(mapped.log.stream, mapped.log.chunk);
-        await emit(mapped.event);
+          const mapped = mapStreamEvent(event);
+          if (mapped.log) await ctx.onLog(mapped.log.stream, mapped.log.chunk);
+          await emit(mapped.event);
 
-        if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-          accumulatedText += event.delta;
+          if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+            accumulatedText += event.delta;
+          }
+          if (isTerminalEvent(event.type)) {
+            terminalResponse = asRecord(event.response) as UhpResponse | null;
+          }
         }
-        if (isTerminalEvent(event.type)) {
-          terminalResponse = asRecord(event.response) as UhpResponse | null;
+        break;
+      } catch (error) {
+        const retryable = (error as { retryable?: unknown })?.retryable === true;
+        if (retryable && !sawEvent && attempt < config.maxRetries) {
+          attempt += 1;
+          await ctx.onLog(
+            "stderr",
+            `[harnessrouter] retrying (${attempt}/${config.maxRetries}) after ${describeError(error)}\n`,
+          );
+          continue;
         }
+        streamError = error;
+        break;
       }
-    } catch (error) {
-      streamError = error;
     }
 
     // A dropped stream is not a failed task: the stored response is the source

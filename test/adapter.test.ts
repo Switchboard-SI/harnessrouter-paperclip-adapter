@@ -139,6 +139,41 @@ describe("execute", () => {
     expect(mock.requests.filter((request) => request.path === "/v1/responses")).toHaveLength(1);
   });
 
+  it("classifies a 429 as quota and retries only as far as the client allows", async () => {
+    mock = await startMockUhp({
+      apiKey: "test-key",
+      responsesError: { status: 429, type: "rate_limit_error", code: "rate_limited", message: "slow down" },
+    });
+    const adapter = createHarnessRouterAdapter({ env: {} });
+    const { ctx } = makeContext({
+      config: { baseUrl: mock.baseUrl, apiKey: "test-key", maxRetries: 1 },
+    });
+
+    const result = await adapter.execute(ctx);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.errorFamily).toBe("provider_quota");
+    expect(result.errorCode).toBe("harnessrouter.rate_limit_error.rate_limited");
+    // The attempt plus one retry; a task that never started is safe to try again.
+    expect(mock.requests.filter((request) => request.path === "/v1/responses")).toHaveLength(2);
+  });
+
+  it("classifies a 503 as transient", async () => {
+    mock = await startMockUhp({
+      apiKey: "test-key",
+      responsesError: { status: 503, type: "server_error", code: "unavailable", message: "try later" },
+    });
+    const adapter = createHarnessRouterAdapter({ env: {} });
+    const { ctx } = makeContext({
+      config: { baseUrl: mock.baseUrl, apiKey: "test-key", maxRetries: 0 },
+    });
+
+    const result = await adapter.execute(ctx);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.errorFamily).toBe("transient_upstream");
+  });
+
   it("refuses to run without a key, and makes no request at all", async () => {
     mock = await startMockUhp();
     const adapter = createHarnessRouterAdapter({ env: {} });
