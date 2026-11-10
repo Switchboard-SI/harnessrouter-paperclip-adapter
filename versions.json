@@ -1,0 +1,39 @@
+{
+  "pins": {
+    "harnessrouter": {
+      "version": "v0.40.2",
+      "released": "2026-11-09T13:17:34Z",
+      "source": "https://github.com/HarnessRouter/harnessrouter",
+      "image": "harnessrouter/harnessrouter:0.40.2",
+      "digest": "sha256:ffc595937898c902824e815086d4b51044a9a466dcc20467ea4543e8f6d28f70",
+      "note": "Docker Hub tag 0.40.2; `latest` resolved to the same digest on 2026-11-09. Pin by digest, not tag."
+    },
+    "uhp_protocol": {
+      "version": "2026-10-19",
+      "source": "https://github.com/HarnessRouter/harnessrouter/blob/v0.40.2/protocol/VERSIONING.md"
+    },
+    "hermes_agent": {
+      "version": "0.19.0",
+      "installed": "/Users/ramnarayan/.hermes/venv-3.12",
+      "python": "3.12.14",
+      "source": "https://pypi.org/project/hermes-agent/",
+      "requires_python": "<3.14,>=3.11"
+    },
+    "paperclip_hermes_adapter": {
+      "package": "@paperclipai/hermes-paperclip-adapter",
+      "version": "2026.1106.0",
+      "license": "MIT",
+      "adapter_types": ["hermes_local", "hermes_gateway"]
+    },
+    "model": {
+      "id": "claude-sonnet-5",
+      "reason": "Newest pinned model with a passing Hermes row in HarnessRouter's support matrix; claude-opus-5.5 / sonnet-5.5 / fable-5-1 are 'not run'."
+    }
+  },
+  "security_notes": [
+    "Install only exact scoped npm names. @penclipai/hermes-paperclip-adapter resolves on npm (HTTP 200) and is a typosquat of @paperclipai/hermes-paperclip-adapter.",
+    "harnessrouter/harnessrouter look-alike repositories exist with 0 stars and no licence; use the HarnessRouter org repo and pin the image digest."
+  ],
+  "recorded_at": "2026-11-09",
+  "recorded_by": "CEO agent, SWI-323 Phase 0"
+}

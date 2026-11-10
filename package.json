@@ -1,0 +1,67 @@
+{
+  "name": "harnessrouter-paperclip-adapter",
+  "version": "0.1.0",
+  "description": "Paperclip ServerAdapterModule that runs agents on HarnessRouter over the Unified Harness Protocol (UHP).",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "keywords": [
+    "paperclip",
+    "harnessrouter",
+    "uhp",
+    "adapter",
+    "agents"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "type": "module",
+  "devDependencies": {
+    "@paperclipai/adapter-utils": "^2026.1106.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  },
+  "dependencies": {
+    "harnessrouterjs": "0.1.0"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Switchboard-Ai/harnessrouter-paperclip-adapter.git"
+  },
+  "homepage": "https://github.com/Switchboard-Ai/harnessrouter-paperclip-adapter",
+  "bugs": {
+    "url": "https://github.com/Switchboard-Ai/harnessrouter-paperclip-adapter/issues"
+  },
+  "peerDependencies": {
+    "@paperclipai/adapter-utils": "*"
+  },
+  "peerDependenciesMeta": {
+    "@paperclipai/adapter-utils": {
+      "optional": true
+    }
+  }
+}
