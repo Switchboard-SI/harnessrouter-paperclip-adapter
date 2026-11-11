@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { homedir } from "node:os";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ConfigError, DEFAULT_API_KEY_FILE, DEFAULT_BASE_URL, normalizeConfig } from "../src/config.js";
@@ -8,7 +9,7 @@ import { classifyFamily, describeError, mapExecutionError } from "../src/errors.
 import { isTerminalEvent, mapStreamEvent } from "../src/events.js";
 import { buildPrompt } from "../src/prompt.js";
 import { buildExecutionResult, readUsage } from "../src/result.js";
-import { resolveApiKey } from "../src/secrets.js";
+import { MAX_API_KEY_FILE_BYTES, resolveApiKey } from "../src/secrets.js";
 import { resumableResponseId, sessionCodec } from "../src/session.js";
 
 function uhpError(overrides: Record<string, unknown>) {
@@ -113,6 +114,43 @@ describe("resolveApiKey", () => {
       },
     });
     expect(resolution.fileError).toBe("EACCES: permission denied");
+  });
+});
+
+describe("resolveApiKey file safety", () => {
+  let dir: string;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "harnessrouter-key-"));
+  });
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("reads a regular key file", () => {
+    const file = join(dir, "api-key");
+    writeFileSync(file, "  real-key\n", { mode: 0o600 });
+    expect(resolveApiKey({ apiKey: "", apiKeyFile: file })).toMatchObject({
+      apiKey: "real-key",
+      source: "file",
+    });
+  });
+
+  it("refuses a path that is not a regular file, so a FIFO or device cannot hang the run", () => {
+    const resolution = resolveApiKey({ apiKey: "", apiKeyFile: dir });
+    expect(resolution).toMatchObject({ apiKey: "", source: "none", fileError: "the path is not a regular file" });
+  });
+
+  it("refuses a file larger than the cap instead of reading it whole", () => {
+    const file = join(dir, "oversized-key");
+    writeFileSync(file, "x".repeat(MAX_API_KEY_FILE_BYTES + 1), { mode: 0o600 });
+    const resolution = resolveApiKey({ apiKey: "", apiKeyFile: file });
+    expect(resolution).toMatchObject({
+      apiKey: "",
+      source: "none",
+      fileError: `the file is larger than ${MAX_API_KEY_FILE_BYTES} bytes`,
+    });
   });
 });
 
