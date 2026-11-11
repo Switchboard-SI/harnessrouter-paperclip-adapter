@@ -76,7 +76,7 @@ an authenticated harness listing, and — when `harnessId` is set — a check th
 
 ```bash
 npm install
-npm test        # 52 tests, no network or Docker required
+npm test        # 55 tests, no network or Docker required
 npm run build   # emits dist/ with type declarations
 ```
 
