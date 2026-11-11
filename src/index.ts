@@ -1,5 +1,5 @@
 /**
- * harnessrouter-paperclip-adapter
+ * @switchboard-si/harnessrouter-paperclip-adapter
  *
  * A Paperclip `ServerAdapterModule` that runs agents on HarnessRouter over the
  * Unified Harness Protocol.

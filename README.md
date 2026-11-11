@@ -1,4 +1,7 @@
-# harnessrouter-paperclip-adapter
+# @switchboard-si/harnessrouter-paperclip-adapter
+
+[![CI](https://github.com/Switchboard-SI/harnessrouter-paperclip-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/Switchboard-SI/harnessrouter-paperclip-adapter/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A [Paperclip](https://github.com/paperclipai/paperclip) `ServerAdapterModule` that runs agents on
 [HarnessRouter](https://github.com/HarnessRouter/harnessrouter) over the Unified Harness Protocol
@@ -13,9 +16,15 @@ HarnessRouter routes a task to a configured harness (Claude Code, Codex, Hermes,
 and returns an OpenAI Responses-compatible stream. Paperclip speaks a different adapter contract.
 This package is the translation layer, kept small enough to audit in one sitting.
 
+## Install
+
+```bash
+npm install @switchboard-si/harnessrouter-paperclip-adapter
+```
+
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - A HarnessRouter Community Edition instance (or any server that passes the UHP conformance suite)
 - A HarnessRouter **CE API key** — created in the console under **API Keys**, not the console
   password and not the model-provider key
@@ -64,7 +73,7 @@ This package is the translation layer, kept small enough to audit in one sitting
 ## Using it in Paperclip
 
 ```ts
-import adapter from "harnessrouter-paperclip-adapter";
+import adapter from "@switchboard-si/harnessrouter-paperclip-adapter";
 
 // Register `adapter` alongside the built-in adapters; its `type` is "harnessrouter".
 ```
@@ -108,8 +117,12 @@ Runs discovery, `testEnvironment()`, and one real streamed task.
   browser code. The adapter never logs the key; diagnostics name only the file it read.
 - Keep the console bound to loopback (`-p 127.0.0.1:3000:3000`). Public deployment needs TLS and a
   reachable console URL; see HarnessRouter's own deployment guide.
-- Report vulnerabilities privately rather than in a public issue.
+- Report vulnerabilities privately rather than in a public issue: see [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Apache-2.0.
+[Apache-2.0](LICENSE). Copyright Switchboard.
