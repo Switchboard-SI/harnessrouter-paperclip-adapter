@@ -3,20 +3,35 @@
  * Live smoke test against a running HarnessRouter.
  *
  *   HARNESSROUTER_BASE_URL=http://127.0.0.1:3200/api/harness \
- *   HARNESSROUTER_API_KEY=... \
  *   node scripts/smoke.mjs [harnessId]
  *
- * Never prints the key. Exits non-zero on the first failed check.
+ * The key comes from HARNESSROUTER_API_KEY, HARNESSROUTER_API_KEY_FILE, or
+ * ~/.harnessrouter/api-key. Never prints it. Exits non-zero on the first failed check.
  */
+
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 import { createHarnessRouterAdapter } from "../dist/index.js";
 
 const baseUrl = process.env.HARNESSROUTER_BASE_URL ?? "http://localhost:3000/api/harness";
-const apiKey = process.env.HARNESSROUTER_API_KEY ?? "";
+const apiKeyFile = process.env.HARNESSROUTER_API_KEY_FILE ?? join(homedir(), ".harnessrouter", "api-key");
+const apiKey = process.env.HARNESSROUTER_API_KEY ?? readKeyFile(apiKeyFile);
 const harnessId = process.argv[2] ?? process.env.HARNESSROUTER_HARNESS_ID ?? null;
 
+function readKeyFile(path) {
+  try {
+    return readFileSync(path, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
 if (!apiKey) {
-  console.error("HARNESSROUTER_API_KEY is not set. Create a key in the console under API Keys.");
+  console.error(
+    `No API key. Set HARNESSROUTER_API_KEY or write one to ${apiKeyFile}. Create a key in the console under API Keys.`,
+  );
   process.exit(2);
 }
 

@@ -21,3 +21,12 @@ export { resumableResponseId, sessionCodec, type HarnessRouterSessionParams } fr
 
 import { adapter as defaultAdapter } from "./adapter.js";
 export default defaultAdapter;
+
+/**
+ * Paperclip's external-adapter loader requires this named factory. Returning
+ * the same module instance keeps one adapter per process, which is correct:
+ * the module holds no run state.
+ */
+export function createServerAdapter() {
+  return defaultAdapter;
+}

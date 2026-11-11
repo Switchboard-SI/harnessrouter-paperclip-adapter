@@ -22,6 +22,7 @@ import { describeError, mapExecutionError } from "./errors.js";
 import { isTerminalEvent, mapStreamEvent, type UhpStreamEvent } from "./events.js";
 import { buildPrompt } from "./prompt.js";
 import { buildExecutionResult, type UhpResponse } from "./result.js";
+import { resolveApiKey, type ApiKeyResolution, type ReadFile } from "./secrets.js";
 import { resumableResponseId, sessionCodec } from "./session.js";
 
 export const ADAPTER_TYPE = "harnessrouter";
@@ -36,6 +37,8 @@ export interface AdapterDependencies {
   /** Test seam: build a client from config without touching the network. */
   createClient?: (config: HarnessRouterConfig) => UhpClient;
   env?: Record<string, string | undefined>;
+  /** Test seam: read the API key file without touching the real filesystem. */
+  readFile?: ReadFile;
 }
 
 function makeClient(config: HarnessRouterConfig): UhpClient {
@@ -73,6 +76,7 @@ function safeIdempotencyKey(runId: string): string {
 export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): ServerAdapterModule {
   const createClient = deps.createClient ?? makeClient;
   const env = deps.env ?? (typeof process === "undefined" ? {} : process.env);
+  const readFile = deps.readFile;
 
   async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
     const startedAt = Date.now();
@@ -95,23 +99,26 @@ export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): Serv
       };
     }
 
-    if (!config.apiKey) {
+    const key = resolveApiKey(config, { readFile });
+
+    if (!key.apiKey) {
       return {
         exitCode: 1,
         signal: null,
         timedOut: false,
-        errorMessage:
-          "No HarnessRouter API key. Set adapterConfig.apiKey or HARNESSROUTER_API_KEY; create a key in the console under API Keys.",
+        errorMessage: `No HarnessRouter API key. Set adapterConfig.apiKey or HARNESSROUTER_API_KEY, or write one to ${key.apiKeyFile}${
+          key.fileError ? ` (${key.fileError})` : ""
+        }. Create a key in the console under API Keys.`,
         errorCode: "harnessrouter.missing_api_key",
         errorFamily: "configuration",
-        errorMeta: { baseUrl: config.baseUrl },
+        errorMeta: { baseUrl: config.baseUrl, apiKeyFile: key.apiKeyFile },
         sessionParams: null,
         sessionDisplayId: null,
         provider: "harnessrouter",
       };
     }
 
-    const client = createClient(config);
+    const client = createClient({ ...config, apiKey: key.apiKey });
     const previousResponseId = resumableResponseId(ctx.runtime?.sessionParams ?? null, {
       baseUrl: config.baseUrl,
       harnessId: config.harnessId,
@@ -271,9 +278,11 @@ export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): Serv
     const checks: AdapterEnvironmentCheck[] = [];
     const testedAt = new Date().toISOString();
     let config: HarnessRouterConfig | null = null;
+    let key: ApiKeyResolution | null = null;
 
     try {
       config = normalizeConfig(ctx.config, { env });
+      key = resolveApiKey(config, { readFile });
       checks.push({
         code: "config.base_url",
         level: "info",
@@ -288,17 +297,27 @@ export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): Serv
       });
     }
 
-    if (config && !config.apiKey) {
-      checks.push({
-        code: "config.api_key",
-        level: "error",
-        message: "No HarnessRouter API key configured",
-        hint: "Create a key in the console under API Keys, then set adapterConfig.apiKey or HARNESSROUTER_API_KEY.",
-      });
+    if (config && key) {
+      if (!key.apiKey) {
+        checks.push({
+          code: "config.api_key",
+          level: "error",
+          message: `No HarnessRouter API key configured (looked for ${key.apiKeyFile}${
+            key.fileError ? `; ${key.fileError}` : ""
+          })`,
+          hint: "Create a key in the console under API Keys, then set adapterConfig.apiKey, HARNESSROUTER_API_KEY, or write it to the key file.",
+        });
+      } else if (key.source === "file") {
+        checks.push({
+          code: "config.api_key",
+          level: "info",
+          message: `API key loaded from ${key.apiKeyFile}`,
+        });
+      }
     }
 
-    if (config) {
-      const client = createClient(config);
+    if (config && key) {
+      const client = createClient({ ...config, apiKey: key.apiKey });
 
       try {
         const discovery = asRecord(await client.discover());
@@ -333,7 +352,7 @@ export function createHarnessRouterAdapter(deps: AdapterDependencies = {}): Serv
         });
       }
 
-      if (config.apiKey) {
+      if (key.apiKey) {
         try {
           const harnesses = await client.harnesses();
           const ids = harnesses

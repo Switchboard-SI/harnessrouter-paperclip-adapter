@@ -26,6 +26,7 @@ This package is the translation layer, kept small enough to audit in one sitting
 | --- | --- | --- |
 | `baseUrl` | `http://localhost:3000/api/harness` | The **console** API root. Not the internal gateway port `8080` — that one is loopback-only inside the container and is not reachable from outside. |
 | `apiKey` | `$HARNESSROUTER_API_KEY` | Preferred: leave this unset and supply the key through the environment. |
+| `apiKeyFile` | `$HARNESSROUTER_API_KEY_FILE`, then `~/.harnessrouter/api-key` | Read only when neither `apiKey` nor `HARNESSROUTER_API_KEY` is set. Write the key once (`chmod 600`) and it never enters Paperclip's database or shell history. `~` is expanded. |
 | `harnessId` | server default | Which configured harness runs the task. |
 | `model` | harness default | Passed through to the harness. |
 | `instructions` | a short Paperclip reminder | System instructions for the run. |
@@ -36,7 +37,8 @@ This package is the translation layer, kept small enough to audit in one sitting
 ```json
 {
   "baseUrl": "http://127.0.0.1:3200/api/harness",
-  "harnessId": "codex",
+  "apiKeyFile": "~/.harnessrouter/api-key",
+  "harnessId": "hermes",
   "timeoutSeconds": 900
 }
 ```
@@ -74,7 +76,7 @@ an authenticated harness listing, and — when `harnessId` is set — a check th
 
 ```bash
 npm install
-npm test        # 41 tests, no network or Docker required
+npm test        # 52 tests, no network or Docker required
 npm run build   # emits dist/ with type declarations
 ```
 
@@ -102,7 +104,8 @@ Runs discovery, `testEnvironment()`, and one real streamed task.
 
 ## Security
 
-- The API key belongs in the environment or Paperclip's config store — never in browser code.
+- The API key belongs in the environment, a `chmod 600` file, or Paperclip's config store — never in
+  browser code. The adapter never logs the key; diagnostics name only the file it read.
 - Keep the console bound to loopback (`-p 127.0.0.1:3000:3000`). Public deployment needs TLS and a
   reachable console URL; see HarnessRouter's own deployment guide.
 - Report vulnerabilities privately rather than in a public issue.
