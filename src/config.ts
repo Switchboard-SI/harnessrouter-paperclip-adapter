@@ -6,12 +6,23 @@
  * written into a database row.
  */
 
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 export const DEFAULT_BASE_URL = "http://localhost:3000/api/harness";
 export const DEFAULT_TIMEOUT_SECONDS = 15 * 60;
+/** Where a key saved by the operator is read from when nothing else supplies one. */
+export const DEFAULT_API_KEY_FILE = join(homedir(), ".harnessrouter", "api-key");
 
 export interface HarnessRouterConfig {
   baseUrl: string;
   apiKey: string;
+  /**
+   * File the API key is read from when `apiKey` is not set inline. Always a
+   * path: the operator writes the key once with `chmod 600` and it never has to
+   * be copied into Paperclip's database or a shell history.
+   */
+  apiKeyFile: string;
   harnessId: string | null;
   model: string | null;
   instructions: string;
@@ -37,6 +48,13 @@ function readString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+/** `fs` does not expand `~`; an operator writing a path by hand expects it to. */
+function expandHome(value: string): string {
+  if (value === "~") return homedir();
+  if (value.startsWith("~/")) return join(homedir(), value.slice(2));
+  return value;
 }
 
 function readPositiveInt(value: unknown, fallback: number): number {
@@ -75,10 +93,12 @@ export function normalizeConfig(
   const baseUrl = baseUrlRaw.replace(/\/+$/, "");
 
   const apiKey = readString(config.apiKey) ?? readString(env.HARNESSROUTER_API_KEY) ?? "";
+  const apiKeyFileRaw = readString(config.apiKeyFile) ?? readString(env.HARNESSROUTER_API_KEY_FILE);
 
   return {
     baseUrl,
     apiKey,
+    apiKeyFile: apiKeyFileRaw ? expandHome(apiKeyFileRaw) : DEFAULT_API_KEY_FILE,
     harnessId: readString(config.harnessId),
     model: readString(config.model),
     instructions:

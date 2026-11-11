@@ -3,25 +3,33 @@
  * Live smoke test against a running HarnessRouter.
  *
  *   HARNESSROUTER_BASE_URL=http://127.0.0.1:3200/api/harness \
- *   HARNESSROUTER_API_KEY=... \
  *   node scripts/smoke.mjs [harnessId]
  *
- * Never prints the key. Exits non-zero on the first failed check.
+ * The key is resolved exactly as the adapter resolves it — HARNESSROUTER_API_KEY,
+ * then HARNESSROUTER_API_KEY_FILE, then ~/.harnessrouter/api-key — so a passing
+ * smoke run means the adapter itself would authenticate. Never prints the key.
+ * Exits non-zero on the first failed check.
  */
 
-import { createHarnessRouterAdapter } from "../dist/index.js";
+import { createHarnessRouterAdapter, normalizeConfig, resolveApiKey } from "../dist/index.js";
 
-const baseUrl = process.env.HARNESSROUTER_BASE_URL ?? "http://localhost:3000/api/harness";
-const apiKey = process.env.HARNESSROUTER_API_KEY ?? "";
 const harnessId = process.argv[2] ?? process.env.HARNESSROUTER_HARNESS_ID ?? null;
 
-if (!apiKey) {
-  console.error("HARNESSROUTER_API_KEY is not set. Create a key in the console under API Keys.");
+// Reuse the adapter's own resolution so this script cannot disagree with it:
+// same `~` expansion, same empty-value handling, same error reporting.
+const config = normalizeConfig({ ...(harnessId ? { harnessId } : {}) }, { env: process.env });
+const key = resolveApiKey(config);
+
+if (!key.apiKey) {
+  console.error(
+    `No API key. Set HARNESSROUTER_API_KEY or write one to ${key.apiKeyFile}${
+      key.fileError ? ` (${key.fileError})` : ""
+    }. Create a key in the console under API Keys.`,
+  );
   process.exit(2);
 }
 
 const adapter = createHarnessRouterAdapter();
-const config = { baseUrl, apiKey, ...(harnessId ? { harnessId } : {}) };
 
 const environment = await adapter.testEnvironment({
   companyId: "smoke",

@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ConfigError, DEFAULT_BASE_URL, normalizeConfig } from "../src/config.js";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { ConfigError, DEFAULT_API_KEY_FILE, DEFAULT_BASE_URL, normalizeConfig } from "../src/config.js";
 import { classifyFamily, describeError, mapExecutionError } from "../src/errors.js";
 import { isTerminalEvent, mapStreamEvent } from "../src/events.js";
 import { buildPrompt } from "../src/prompt.js";
 import { buildExecutionResult, readUsage } from "../src/result.js";
+import { MAX_API_KEY_FILE_BYTES, resolveApiKey } from "../src/secrets.js";
 import { resumableResponseId, sessionCodec } from "../src/session.js";
 
 function uhpError(overrides: Record<string, unknown>) {
@@ -45,6 +50,107 @@ describe("normalizeConfig", () => {
 
   it("rejects a string that is not a URL", () => {
     expect(() => normalizeConfig({ baseUrl: "not a url" })).toThrow(ConfigError);
+  });
+
+  it("defaults the key file to the operator's home", () => {
+    expect(normalizeConfig({}).apiKeyFile).toBe(join(homedir(), ".harnessrouter", "api-key"));
+    expect(DEFAULT_API_KEY_FILE).toBe(normalizeConfig({}).apiKeyFile);
+  });
+
+  it("takes the key file from the environment, and expands a leading ~", () => {
+    expect(normalizeConfig({}, { env: { HARNESSROUTER_API_KEY_FILE: "/etc/hr/key" } }).apiKeyFile).toBe("/etc/hr/key");
+    expect(normalizeConfig({}, { env: { HARNESSROUTER_API_KEY_FILE: "~/secrets/hr" } }).apiKeyFile).toBe(
+      join(homedir(), "secrets/hr"),
+    );
+  });
+
+  it("prefers an explicit key file over the environment", () => {
+    const config = normalizeConfig(
+      { apiKeyFile: "~/explicit/key" },
+      { env: { HARNESSROUTER_API_KEY_FILE: "/env/key" } },
+    );
+    expect(config.apiKeyFile).toBe(join(homedir(), "explicit/key"));
+  });
+});
+
+describe("resolveApiKey", () => {
+  const base = { apiKey: "", apiKeyFile: "/tmp/key" };
+
+  it("uses an inline key and never touches the file", () => {
+    const resolution = resolveApiKey(
+      { apiKey: "inline", apiKeyFile: "/tmp/key" },
+      {
+        readFile: () => {
+          throw new Error("should not read the file");
+        },
+      },
+    );
+    expect(resolution).toMatchObject({ apiKey: "inline", source: "config", fileError: null });
+  });
+
+  it("reads and trims the key file", () => {
+    const resolution = resolveApiKey(base, { readFile: () => "  file-key\n" });
+    expect(resolution).toMatchObject({ apiKey: "file-key", source: "file", apiKeyFile: "/tmp/key" });
+  });
+
+  it("reports a missing file instead of failing the run with a stack trace", () => {
+    const resolution = resolveApiKey(base, {
+      readFile: () => {
+        throw Object.assign(new Error("no such file"), { code: "ENOENT" });
+      },
+    });
+    expect(resolution).toMatchObject({ apiKey: "", source: "none", fileError: "the file does not exist" });
+  });
+
+  it("treats an empty file as no key", () => {
+    const resolution = resolveApiKey(base, { readFile: () => "\n" });
+    expect(resolution).toMatchObject({ apiKey: "", source: "none", fileError: "the file is empty" });
+  });
+
+  it("passes through other read errors so permissions problems are visible", () => {
+    const resolution = resolveApiKey(base, {
+      readFile: () => {
+        throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+      },
+    });
+    expect(resolution.fileError).toBe("EACCES: permission denied");
+  });
+});
+
+describe("resolveApiKey file safety", () => {
+  let dir: string;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "harnessrouter-key-"));
+  });
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("reads a regular key file", () => {
+    const file = join(dir, "api-key");
+    writeFileSync(file, "  real-key\n", { mode: 0o600 });
+    expect(resolveApiKey({ apiKey: "", apiKeyFile: file })).toMatchObject({
+      apiKey: "real-key",
+      source: "file",
+    });
+  });
+
+  it("refuses a path that is not a regular file, so a FIFO or device cannot hang the run", () => {
+    const resolution = resolveApiKey({ apiKey: "", apiKeyFile: dir });
+    expect(resolution).toMatchObject({ apiKey: "", source: "none", fileError: "the path is not a regular file" });
+  });
+
+  it("refuses a file larger than the cap instead of reading it whole", () => {
+    const file = join(dir, "oversized-key");
+    writeFileSync(file, "x".repeat(MAX_API_KEY_FILE_BYTES + 1), { mode: 0o600 });
+    const resolution = resolveApiKey({ apiKey: "", apiKeyFile: file });
+    expect(resolution).toMatchObject({
+      apiKey: "",
+      source: "none",
+      fileError: `the file is larger than ${MAX_API_KEY_FILE_BYTES} bytes`,
+    });
   });
 });
 
