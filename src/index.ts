@@ -17,6 +17,7 @@ export { describeError, isUhpFailure, mapExecutionError } from "./errors.js";
 export { mapStreamEvent, isTerminalEvent, type MappedEvent, type UhpStreamEvent } from "./events.js";
 export { buildPrompt, type PromptContext } from "./prompt.js";
 export { buildExecutionResult, readUsage, type UhpResponse } from "./result.js";
+export { resolveApiKey, type ApiKeyResolution } from "./secrets.js";
 export { resumableResponseId, sessionCodec, type HarnessRouterSessionParams } from "./session.js";
 
 import { adapter as defaultAdapter } from "./adapter.js";
