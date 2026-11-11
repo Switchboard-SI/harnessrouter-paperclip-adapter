@@ -1,5 +1,5 @@
 {
-  "name": "@switchboard-si/harnessrouter-paperclip-adapter",
+  "name": "@uhp-adapters/paperclip",
   "version": "0.1.0",
   "description": "Paperclip ServerAdapterModule that runs agents on HarnessRouter over the Unified Harness Protocol (UHP).",
   "main": "./dist/index.js",
@@ -18,7 +18,7 @@
     "adapter",
     "agents"
   ],
-  "author": "Switchboard (https://switchboard-ai.com)",
+  "author": "The UHP Adapters contributors",
   "license": "Apache-2.0",
   "type": "module",
   "devDependencies": {

@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.1.0] - 2026-11-11
 
-First public release as `@switchboard-si/harnessrouter-paperclip-adapter`.
+First public release as `@uhp-adapters/paperclip`.
 
 ### Added
 - Paperclip `ServerAdapterModule` (type `harnessrouter`) that runs one Paperclip run as one UHP task.

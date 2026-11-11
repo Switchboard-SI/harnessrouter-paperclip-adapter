@@ -1,4 +1,4 @@
-# @switchboard-si/harnessrouter-paperclip-adapter
+# @uhp-adapters/paperclip
 
 [![CI](https://github.com/Switchboard-SI/harnessrouter-paperclip-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/Switchboard-SI/harnessrouter-paperclip-adapter/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -19,7 +19,7 @@ This package is the translation layer, kept small enough to audit in one sitting
 ## Install
 
 ```bash
-npm install @switchboard-si/harnessrouter-paperclip-adapter
+npm install @uhp-adapters/paperclip
 ```
 
 ## Requirements
@@ -73,7 +73,7 @@ npm install @switchboard-si/harnessrouter-paperclip-adapter
 ## Using it in Paperclip
 
 ```ts
-import adapter from "@switchboard-si/harnessrouter-paperclip-adapter";
+import adapter from "@uhp-adapters/paperclip";
 
 // Register `adapter` alongside the built-in adapters; its `type` is "harnessrouter".
 ```
@@ -125,4 +125,4 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[Apache-2.0](LICENSE). Copyright Switchboard.
+[Apache-2.0](LICENSE). Copyright the UHP Adapters contributors.
